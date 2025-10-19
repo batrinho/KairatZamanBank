@@ -14,8 +14,10 @@ struct AishaButtonView: View {
     
     var body: some View {
         HStack(spacing: 14) {
-            Text("🧕")
-                .font(.system(size: 34))
+            Image("AishaHappy")
+                .resizable().renderingMode(.original)
+                .scaledToFit()
+                .frame(width: 60, height: 60)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)

@@ -1,20 +1,7 @@
 import SwiftUI
 
-enum BankTab: String, CaseIterable, Identifiable {
-    case bank = "My Bank"
-    case transfers = "Transfers"
-    case chat = "Chat"
-    var id: String { rawValue }
-    var icon: String {
-        switch self {
-        case .bank: return "creditcard"
-        case .transfers: return "arrow.2.squarepath"
-        case .chat: return "bubble.left"
-        }
-    }
-}
-
 struct MainPageView: View {
+    @StateObject private var net = NetworkingService()
     @State private var tab: BankTab = .bank
     
     var body: some View {
@@ -22,20 +9,21 @@ struct MainPageView: View {
             Group {
                 switch tab {
                 case .bank:
-                    BankView()
+                    BankView { tab = .chat }
                 case .transfers:
                     TransferFormView()
                 case .chat:
-                    ScrollView { Text("Chat").padding(20) }
-                        .scrollIndicators(.hidden)
+                    AishaAssistantView()
                 }
             }
+            .environmentObject(net)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             
             PillTabBar(selection: $tab)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
         }
+        .scrollDismissesKeyboard(.interactively)
         .ignoresSafeArea(edges: .bottom)
     }
 }
@@ -67,6 +55,7 @@ private struct PillTabBar: View {
         .background(
             Capsule(style: .continuous)
                 .fill(.white)
+                .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
         )
     }
 }

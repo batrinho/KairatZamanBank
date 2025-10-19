@@ -1,119 +1,52 @@
 import SwiftUI
 
-// MARK: - Card model + demo
-struct CardItem: Identifiable, Hashable {
-    let id = UUID()
-    let brandAsset: String
-    let last4: String
-    let balance: String
-}
-
-private let demoCards: [CardItem] = [
-    .init(brandAsset: "mastercard", last4: "6917", balance: "27 567,67 ₸"),
-    .init(brandAsset: "mastercard", last4: "1123", balance: "83 240,10 ₸"),
-    .init(brandAsset: "visa",       last4: "5460", balance: "15 004,00 ₸")
-]
-
-// MARK: - Selector button → opens sheet
-struct CardSelector: View {
-    @Binding var selected: CardItem
-    @State private var showPicker = false
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(selected.brandAsset)
-                .resizable().renderingMode(.original)
-                .scaledToFit().frame(height: 24)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Card ** \(selected.last4)").font(.caption).foregroundStyle(.secondary)
-                Text(selected.balance).font(.title3).fontWeight(.semibold)
-            }
-            Spacer()
-            Image(systemName: showPicker ? "chevron.up" : "chevron.down")
-                .font(.headline.weight(.semibold))
-        }
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: 22).fill(.white))
-        .shadow(color: .black.opacity(0.06), radius: 10, y: 4)
-        .onTapGesture { showPicker = true }
-        .sheet(isPresented: $showPicker) {
-            CardPicker(cards: demoCards, selected: $selected)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-        }
-    }
-}
-
-// MARK: - Picker sheet
-struct CardPicker: View {
-    let cards: [CardItem]
-    @Binding var selected: CardItem
-
-    var body: some View {
-        NavigationStack {
-            List(cards, id: \.self) { card in
-                HStack(spacing: 12) {
-                    Image(card.brandAsset)
-                        .resizable().renderingMode(.original)
-                        .scaledToFit().frame(height: 20)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("** \(card.last4)").font(.subheadline).fontWeight(.semibold)
-                        Text(card.balance).font(.caption).foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    if card == selected {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.zamanGreen)
-                    }
-                }
-                .contentShape(Rectangle())
-                .onTapGesture { selected = card }
-            }
-            .listStyle(.plain)
-            .navigationTitle("Choose a card")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
-
 // MARK: - Transfer form
 struct TransferFormView: View {
+    @EnvironmentObject private var net: NetworkingService
+    
     enum Target: String, CaseIterable { case phone = "Phone Number", card = "Card Number" }
     enum Field { case phone, card, amount, note }
-
+    
     @State private var target: Target = .phone
     @Namespace private var segNS
-
     @State private var phone = ""
     @State private var card = ""
     @State private var amount = "17 000 ₸"
     @State private var note = ""
     @FocusState private var focus: Field?
-
-    @State private var selectedCard: CardItem = demoCards.first!   // <- selected state
-
+    
+    @State private var selectedCard: CardDto
+    
+    var pickerCards: [CardDto] {
+        net.cards
+    }
+    
+    init() {
+        selectedCard = (pickerCards.first ?? CardDto(imageURL: nil, last4: "----"))
+    }
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-
+                
                 // Card selector (tap to change)
                 CardSelector(selected: $selectedCard)
-
+                
                 SegmentedSelector(selection: $target, namespace: segNS)
-
+                
                 // Target input
                 Group {
                     Text(target == .phone ? "Dial a number" : "Enter card number")
                         .font(.caption).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-
+                    
                     HStack {
                         TextField(target == .phone ? "+7 (___) ___-__-__" : "____ ____ ____ ____",
                                   text: target == .phone ? $phone : $card)
-                            .keyboardType(target == .phone ? .phonePad : .numberPad)
-                            .submitLabel(.done)
-                            .focused($focus, equals: target == .phone ? .phone : .card)
-
+                        .keyboardType(target == .phone ? .phonePad : .numberPad)
+                        .submitLabel(.done)
+                        .focused($focus, equals: target == .phone ? .phone : .card)
+                        
                         Image(systemName: target == .phone ? "person.crop.circle" : "creditcard")
                             .font(.headline).foregroundStyle(.secondary)
                     }
@@ -121,7 +54,7 @@ struct TransferFormView: View {
                     .background(RoundedRectangle(cornerRadius: 18).fill(.white))
                     .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
                 }
-
+                
                 // Amount
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Transfer amount").font(.caption).foregroundStyle(.secondary)
@@ -135,7 +68,7 @@ struct TransferFormView: View {
                         .background(RoundedRectangle(cornerRadius: 18).fill(.white))
                         .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
                 }
-
+                
                 // Note
                 TextEditor(text: $note)
                     .scrollContentBackground(.hidden)
@@ -154,7 +87,7 @@ struct TransferFormView: View {
                         }
                     )
                     .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
-
+                
                 // Quick notes
                 HStack(spacing: 12) {
                     ForEach(["Thank you!🥰","Congrats!👏","Alhamdulillah"], id: \.self) { chip in
@@ -166,7 +99,7 @@ struct TransferFormView: View {
                             .onTapGesture { note = chip }
                     }
                 }
-
+                
                 // CTA
                 Text("Transfer")
                     .font(.headline)
@@ -175,7 +108,7 @@ struct TransferFormView: View {
                     .background(RoundedRectangle(cornerRadius: 16).fill(Color(red: 0.93, green: 0.98, blue: 0.42)))
                     .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
                     .foregroundStyle(.black)
-
+                
                 TransfersCardView()
             }
         }
@@ -194,7 +127,7 @@ struct TransferFormView: View {
 private struct SegmentedSelector: View {
     @Binding var selection: TransferFormView.Target
     var namespace: Namespace.ID
-
+    
     var body: some View {
         HStack(spacing: 0) {
             ForEach(TransferFormView.Target.allCases, id: \.self) { tab in

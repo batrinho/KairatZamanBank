@@ -20,9 +20,9 @@ struct ZamanGradientView: View {
                 [0.0, 1.0], [0.5, 1.0], [1.0, 1.0]
             ],
             colors: [
-                .zamanDarkGreen, .zamanGreen, .white,
-                isAnimating ? .white : .white, .zamanDarkGreen, .zamanGreen, .white,
-                .zamanDarkGreen, .zamanGreen, .white,
+                .white, .zamanDarkGreen, .white, .zamanGreen, .white,
+                isAnimating ? .white : .white, .zamanDarkGreen, .white, .zamanGreen, .white,
+                .white, .zamanDarkGreen, .white, .zamanGreen, .white,
             ]
         )
         .ignoresSafeArea()
