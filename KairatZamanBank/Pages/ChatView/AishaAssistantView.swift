@@ -6,7 +6,7 @@ import AVFoundation
 private let base = "https://zamanbank-api-production.up.railway.app"
 private let bearer =
 """
-eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJiZWtvbmFpIiwiaWF0IjoxNzYwODQ2MjI0LCJleHAiOjE3NjA5MzI2MjR9.H6p1z4pVyhGP2h6XKhmELsKlwQ5XmQeuams0DwAWhUk
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0IiwiaWF0IjoxNzYwODUyNDU5LCJleHAiOjE3NjA5Mzg4NTl9.R-USJ4r8ow5Y3j5RSqfqyGNqBJ6_1Xt0Ad43D6A-wio
 """
 
 private struct ChatAPIResponse: Decodable {
@@ -183,7 +183,7 @@ struct AishaAssistantView: View {
     @State private var message = ""
     @FocusState private var typing: Bool
     @StateObject private var kb = KeyboardObserver()
-    
+    @StateObject private var audio = VoiceAudioPlayer()
     @State private var showIntro = true
     @State private var thread: [ChatMessage] = []
     
@@ -234,6 +234,60 @@ struct AishaAssistantView: View {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
                     thread.append(.init(role: .assistant,
                         text: "Sorry, I couldn’t reach the server.\n\(error.localizedDescription)"))
+                }
+            }
+        }
+    }
+    
+    @MainActor
+    private func sendVoice(_ text: String) {
+        showIntro = false
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+            thread.append(.init(role: .user, text: text))
+        }
+        sendRemoteVoice(text) // ← hits TTS endpoint and auto-plays audio
+    }
+
+    @MainActor
+    private func sendRemoteVoice(_ text: String) {
+        if isThinking { return }
+        isThinking = true
+
+        Task {
+            defer { isThinking = false }
+
+            do {
+                var comps = URLComponents(string: "\(base)/chat-bot/analyze-speech")!
+                comps.queryItems = [URLQueryItem(name: "text", value: text)]
+                guard let url = comps.url else { return }
+
+                var req = URLRequest(url: url)
+                req.httpMethod = "POST"
+                req.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+                // We expect raw audio back:
+                req.setValue("audio/aac, audio/mp4, audio/m4a, application/octet-stream", forHTTPHeaderField: "Accept")
+
+                let (data, resp) = try await URLSession.shared.data(for: req)
+                guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+                    let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
+                    throw NSError(domain: "HTTPError", code: code)
+                }
+
+                let contentType = (resp as? HTTPURLResponse)?
+                    .value(forHTTPHeaderField: "Content-Type")
+
+                // Play the audio immediately
+                try audio.playAudioData(data, contentType: contentType)
+
+                // (Optional) show a little marker message in the thread
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                    thread.append(.init(role: .assistant, text: "🔊 Playing voice reply…"))
+                }
+
+            } catch {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                    thread.append(.init(role: .assistant,
+                        text: "Sorry, I couldn’t play the voice reply.\n\(error.localizedDescription)"))
                 }
             }
         }
@@ -341,9 +395,54 @@ struct AishaAssistantView: View {
         let text = speech.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) { showRecorder = false }
         guard sendText, !text.isEmpty else { return }
-        sendLocal(text) // voice result also enters the thread locally
+        sendVoice(text) // ← was: sendLocal(text)
     }
     private func stopSession() {
         withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) { showRecorder = false }
+    }
+}
+
+// MARK: - Voice audio player
+@MainActor
+final class VoiceAudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate {
+    @Published var isPlaying = false
+    private var player: AVAudioPlayer?
+    private var tempFileURL: URL?
+
+    func playAudioData(_ data: Data, contentType: String?) throws {
+        // Pick a file extension that AVAudioPlayer likes
+        let ext: String = {
+            guard let ct = contentType?.lowercased() else { return "m4a" }
+            if ct.contains("aac") { return "aac" }
+            if ct.contains("mp4") || ct.contains("m4a") { return "m4a" }
+            return "m4a"
+        }()
+
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("aisha_reply_\(UUID().uuidString).\(ext)")
+
+        try data.write(to: url, options: .atomic)
+
+        // Prepare audio session for playback (plays even in Silent mode)
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+        try session.setActive(true, options: .notifyOthersOnDeactivation)
+
+        // Keep a strong ref while playing
+        tempFileURL = url
+        player = try AVAudioPlayer(contentsOf: url)
+        player?.delegate = self
+        player?.prepareToPlay()
+        player?.play()
+        isPlaying = true
+    }
+
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        isPlaying = false
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        // Cleanup temp file
+        if let u = tempFileURL { try? FileManager.default.removeItem(at: u) }
+        tempFileURL = nil
+        self.player = nil
     }
 }
