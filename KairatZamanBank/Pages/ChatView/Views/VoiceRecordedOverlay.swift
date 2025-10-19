@@ -61,16 +61,13 @@ struct VoiceOverlay: View {
 
         case .waiting:
             VStack(spacing: 18) {
-                if let ui = UIImage(systemName: "waveform.circle") {
-                    Image(uiImage: ui).resizable()
-                        .scaledToFit()
-                        .frame(width: 80, height: 80)
-                        .foregroundStyle(.white)
-                        .opacity(0.9)
-                }
-                ProgressView()
-                    .progressViewStyle(.circular)
-                Text("Generating voice reply…")
+                Image("AishaThinking")
+                    .resizable().renderingMode(.original)
+                    .scaledToFit()
+                    .frame(width: 150, height: 150)
+                    .scaleEffect(1 + 0.5 * level)
+                    .animation(.easeInOut(duration: 0.12), value: level)
+                Text("Thinking…")
                     .font(.headline).fontWeight(.semibold)
             }
 
