@@ -3,6 +3,65 @@ import Combine
 import Speech
 import AVFoundation
 
+private let base = "https://zamanbank-api-production.up.railway.app"
+private let bearer =
+"""
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJiZWtvbmFpIiwiaWF0IjoxNzYwODQ2MjI0LCJleHAiOjE3NjA5MzI2MjR9.H6p1z4pVyhGP2h6XKhmELsKlwQ5XmQeuams0DwAWhUk
+"""
+
+private struct ChatAPIResponse: Decodable {
+    let response: String
+    let message: String?
+}
+
+private struct TypingBubble: View {
+    @State private var t: Double = 0
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "sparkles")
+                .font(.headline.weight(.bold))
+            Text("Aisha is thinking")
+                .font(.callout).fontWeight(.semibold)
+
+            Spacer(minLength: 0)
+
+            // three animated dots
+            HStack(spacing: 6) {
+                ForEach(0..<3) { i in
+                    Circle()
+                        .frame(width: 6, height: 6)
+                        .opacity(dotOpacity(i))
+                        .scaleEffect(dotScale(i))
+                        .animation(.easeInOut(duration: 0.9).repeatForever().delay(Double(i) * 0.15), value: t)
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.ultraThinMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(Color.black.opacity(0.05), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 6)
+        .onAppear { t = 1 } // kick off animations
+    }
+
+    private func dotOpacity(_ i: Int) -> Double {
+        // subtle pulse: 0.3 -> 1 -> 0.3
+        // animation driven by 't' state flipping to start
+        return 0.3 + 0.7 * abs(sin((t + Double(i) * 0.35) * .pi))
+    }
+
+    private func dotScale(_ i: Int) -> CGFloat {
+        0.8 + 0.2 * CGFloat(abs(sin((t + Double(i) * 0.35) * .pi)))
+    }
+}
+
 // MARK: - Keyboard helper
 final class KeyboardObserver: ObservableObject {
     @Published var height: CGFloat = 0
@@ -120,6 +179,7 @@ final class SpeechRecognizer: NSObject, ObservableObject {
 
 // MARK: - Screen
 struct AishaAssistantView: View {
+    @State private var isThinking = false
     @State private var message = ""
     @FocusState private var typing: Bool
     @StateObject private var kb = KeyboardObserver()
@@ -137,6 +197,47 @@ struct AishaAssistantView: View {
         "How can I effectively spend my money?",
         "I should pay my mahr this year. Give me a plan"
     ]
+    
+    @MainActor
+    private func sendRemote(_ text: String) {
+        // prevent overlapping requests (optional, but helpful)
+        if isThinking { return }
+        isThinking = true
+
+        Task {
+            defer { isThinking = false } // always turn off
+
+            do {
+                var comps = URLComponents(string: "\(base)/chat-bot/chat")!
+                comps.queryItems = [URLQueryItem(name: "text", value: text)]
+                guard let url = comps.url else { return }
+
+                var req = URLRequest(url: url)
+                req.httpMethod = "POST"
+                req.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+                req.setValue("application/json", forHTTPHeaderField: "Accept")
+
+                let (data, resp) = try await URLSession.shared.data(for: req)
+                guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+                    let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
+                    throw NSError(domain: "HTTPError", code: code)
+                }
+
+                let decoded = try JSONDecoder().decode(ChatAPIResponse.self, from: data)
+                let botReply = decoded.response.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                    thread.append(.init(role: .assistant, text: botReply.isEmpty ? "…" : botReply))
+                }
+
+            } catch {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                    thread.append(.init(role: .assistant,
+                        text: "Sorry, I couldn’t reach the server.\n\(error.localizedDescription)"))
+                }
+            }
+        }
+    }
     
     var body: some View {
         ZStack {
@@ -173,11 +274,19 @@ struct AishaAssistantView: View {
                     }
                     
                     ChatList(messages: thread)
-                        .frame(maxWidth: .infinity,
-                               maxHeight: showIntro ? 0 : .infinity,
-                               alignment: .top)
-                        .clipped()
-                        .animation(.spring(response: 0.3, dampingFraction: 0.9), value: showIntro)
+                            .frame(maxWidth: .infinity,
+                                   maxHeight: showIntro ? 0 : .infinity,
+                                   alignment: .top)
+                            .clipped()
+                            .animation(.spring(response: 0.3, dampingFraction: 0.9), value: showIntro)
+
+                        if isThinking && !showIntro {
+                            TypingBubble() // ⬅️ new little bubble
+                                .padding(.horizontal, 20)
+                                .padding(.top, 8)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                                .animation(.spring(response: 0.25, dampingFraction: 0.9), value: isThinking)
+                        }
                 }
                 .safeAreaInset(edge: .bottom) {
                     ChatInputBar(
@@ -213,17 +322,13 @@ struct AishaAssistantView: View {
         }
     }
     
-    // MARK: - Local send with echo
+    // MARK: - Local send + network
     private func sendLocal(_ text: String) {
         showIntro = false
         withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             thread.append(.init(role: .user, text: text))
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-                thread.append(.init(role: .assistant, text: text))
-            }
-        }
+        sendRemote(text) // ← hit your backend
     }
     
     // MARK: - Voice actions (unchanged behavior)

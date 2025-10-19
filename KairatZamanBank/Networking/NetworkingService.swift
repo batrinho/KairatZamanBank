@@ -15,7 +15,7 @@ final class NetworkingService: ObservableObject {
     @Published var showPopup: Bool = false
     @Published var isTransferring = false
     
-    let token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI4Nzc3Nzc3Nzc3NyIsImlhdCI6MTc2MDgxNjYzMSwiZXhwIjoxNzYwOTAzMDMxfQ.alVHeshawy2-cJG9eSaFlsNkZY3SpZk0BeZE5Ny2xv8"
+    let token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJiZWtvbmFpIiwiaWF0IjoxNzYwODQ2MjI0LCJleHAiOjE3NjA5MzI2MjR9.H6p1z4pVyhGP2h6XKhmELsKlwQ5XmQeuams0DwAWhUk"
     
     
     let base = "https://zamanbank-api-production.up.railway.app"
