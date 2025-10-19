@@ -15,6 +15,7 @@ private struct ChatAPIResponse: Decodable {
     let message: String?
 }
 
+// MARK: - Speaking video used inside the overlay while audio plays
 struct SpeakingVideoView: View {
     let url: URL
     @State private var queue = AVQueuePlayer()
@@ -35,6 +36,7 @@ struct SpeakingVideoView: View {
     }
 }
 
+// MARK: - Typing bubble in chat
 private struct TypingBubble: View {
     @State private var t: Double = 0
 
@@ -47,7 +49,6 @@ private struct TypingBubble: View {
 
             Spacer(minLength: 0)
 
-            // three animated dots
             HStack(spacing: 6) {
                 ForEach(0..<3) { i in
                     Circle()
@@ -69,15 +70,12 @@ private struct TypingBubble: View {
                 .strokeBorder(Color.black.opacity(0.05), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 6)
-        .onAppear { t = 1 } // kick off animations
+        .onAppear { t = 1 }
     }
 
     private func dotOpacity(_ i: Int) -> Double {
-        // subtle pulse: 0.3 -> 1 -> 0.3
-        // animation driven by 't' state flipping to start
-        return 0.3 + 0.7 * abs(sin((t + Double(i) * 0.35) * .pi))
+        0.3 + 0.7 * abs(sin((t + Double(i) * 0.35) * .pi))
     }
-
     private func dotScale(_ i: Int) -> CGFloat {
         0.8 + 0.2 * CGFloat(abs(sin((t + Double(i) * 0.35) * .pi)))
     }
@@ -102,20 +100,20 @@ final class KeyboardObserver: ObservableObject {
     }
 }
 
-// MARK: - Speech recognizer (idempotent)
+// MARK: - Speech recognizer
 @MainActor
 final class SpeechRecognizer: NSObject, ObservableObject {
     @Published var transcript: String = ""
     @Published var level: CGFloat = 0
-    
+
     private let recognizer = SFSpeechRecognizer()
     private let audioEngine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
-    
+
     private var isRunning = false
     private var isStopping = false
-    
+
     func start() {
         guard !isRunning else { return }
         requestPermissions { [weak self] ok in
@@ -123,7 +121,7 @@ final class SpeechRecognizer: NSObject, ObservableObject {
             self.startEngine()
         }
     }
-    
+
     func stop() {
         guard isRunning, !isStopping else { return }
         isStopping = true
@@ -134,30 +132,33 @@ final class SpeechRecognizer: NSObject, ObservableObject {
             self?.task?.cancel()
         }
     }
-    
+
     private func requestPermissions(completion: @escaping (Bool) -> Void) {
         SFSpeechRecognizer.requestAuthorization { status in
-            guard status == .authorized else { DispatchQueue.main.async { completion(false) }; return }
+            guard status == .authorized else {
+                DispatchQueue.main.async { completion(false) }
+                return
+            }
             AVAudioApplication.requestRecordPermission { micOK in
                 DispatchQueue.main.async { completion(micOK) }
             }
         }
     }
-    
+
     private func startEngine() {
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.record, mode: .measurement, options: [.duckOthers])
             try session.setActive(true, options: .notifyOthersOnDeactivation)
-            
+
             let req = SFSpeechAudioBufferRecognitionRequest()
             req.shouldReportPartialResults = true
             if recognizer?.supportsOnDeviceRecognition == true { req.requiresOnDeviceRecognition = true }
             request = req
-            
+
             isRunning = true
             isStopping = false
-            
+
             task = recognizer?.recognitionTask(with: req) { [weak self] result, error in
                 guard let self else { return }
                 if let r = result {
@@ -165,7 +166,7 @@ final class SpeechRecognizer: NSObject, ObservableObject {
                 }
                 if error != nil || (result?.isFinal ?? false) { self.cleanupSession() }
             }
-            
+
             let input = audioEngine.inputNode
             let format = input.outputFormat(forBus: 0)
             input.removeTap(onBus: 0)
@@ -179,14 +180,14 @@ final class SpeechRecognizer: NSObject, ObservableObject {
                 let norm = min(max((db + 50) / 30, 0), 1)
                 DispatchQueue.main.async { self.level = CGFloat(norm) }
             }
-            
+
             audioEngine.prepare()
             try audioEngine.start()
         } catch {
             cleanupSession()
         }
     }
-    
+
     private func cleanupSession() {
         audioEngine.inputNode.removeTap(onBus: 0)
         if audioEngine.isRunning { audioEngine.stop() }
@@ -198,6 +199,13 @@ final class SpeechRecognizer: NSObject, ObservableObject {
     }
 }
 
+// MARK: - Overlay phase
+enum VoiceOverlayPhase: Equatable {
+    case listening
+    case waiting    // stopped recording, waiting for TTS/audio
+    case speaking   // showing speaking video while audio plays
+}
+
 // MARK: - Screen
 struct AishaAssistantView: View {
     @State private var isThinking = false
@@ -207,10 +215,10 @@ struct AishaAssistantView: View {
     @StateObject private var audio = VoiceAudioPlayer()
     @State private var showIntro = true
     @State private var thread: [ChatMessage] = []
-    @State private var showSpeaker = false
 
     // voice
     @State private var showRecorder = false
+    @State private var overlayPhase: VoiceOverlayPhase = .listening
     @StateObject private var speech = SpeechRecognizer()
 
     let suggestions = [
@@ -220,6 +228,7 @@ struct AishaAssistantView: View {
         "I should pay my mahr this year. Give me a plan"
     ]
 
+    // MARK: - Text chat
     @MainActor
     private func sendRemote(_ text: String) {
         if isThinking { return }
@@ -258,6 +267,7 @@ struct AishaAssistantView: View {
         }
     }
 
+    // MARK: - Voice chat
     @MainActor
     private func sendVoice(_ text: String) {
         showIntro = false
@@ -284,6 +294,12 @@ struct AishaAssistantView: View {
                 req.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
                 req.setValue("audio/aac, audio/mp4, audio/m4a, application/octet-stream", forHTTPHeaderField: "Accept")
 
+                // while waiting for TTS -> keep overlay visible in .waiting
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                    overlayPhase = .waiting
+                    showRecorder = true
+                }
+
                 let (data, resp) = try await URLSession.shared.data(for: req)
                 guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
                     let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
@@ -292,7 +308,7 @@ struct AishaAssistantView: View {
 
                 let contentType = (resp as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type")
 
-                // Play reply and let UI react to audio.isPlaying
+                // Play reply and let UI react to audio.isPlaying (will flip overlay to .speaking)
                 try audio.playAudioData(data, contentType: contentType)
 
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
@@ -303,6 +319,13 @@ struct AishaAssistantView: View {
                     thread.append(.init(role: .assistant,
                         text: "Sorry, I couldn’t play the voice reply.\n\(error.localizedDescription)"))
                 }
+                // If error occurs, close overlay if we were waiting
+                if showRecorder {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                        showRecorder = false
+                        overlayPhase = .listening
+                    }
+                }
             }
         }
     }
@@ -311,92 +334,96 @@ struct AishaAssistantView: View {
         ZStack {
             ZamanGradientView().ignoresSafeArea()
 
-            if !showRecorder {
-                VStack(spacing: 0) {
-                    if showIntro {
-                        VStack(spacing: 24) {
-                            Text("Aisha Assistant").font(.title).fontWeight(.semibold)
-                            if let ui = UIImage(named: "AishaHappy") {
-                                Image(uiImage: ui).resizable().scaledToFit().frame(width: 140, height: 140)
-                            } else { Text("🧕").font(.system(size: 120)) }
-                            Text("Your Financial AI Assistant. Speak or type to interact.")
-                                .font(.subheadline).foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 32)
-                            VStack(spacing: 12) {
-                                ForEach(suggestions, id: \.self) { s in
-                                    Text(s)
-                                        .font(.callout).fontWeight(.semibold)
-                                        .padding(.horizontal, 18).padding(.vertical, 10)
-                                        .background(Capsule().fill(Color(red: 0.93, green: 0.98, blue: 0.42)))
-                                        .foregroundStyle(.black)
-                                        .contentShape(Capsule())
-                                        .onTapGesture { sendLocal(s) }
-                                }
+            // Main Chat UI (behind overlay)
+            VStack(spacing: 0) {
+                if showIntro {
+                    VStack(spacing: 24) {
+                        Text("Aisha Assistant").font(.title).fontWeight(.semibold)
+                        if let ui = UIImage(named: "AishaHappy") {
+                            Image(uiImage: ui).resizable().scaledToFit().frame(width: 140, height: 140)
+                        } else { Text("🧕").font(.system(size: 120)) }
+                        Text("Your Financial AI Assistant. Speak or type to interact.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                        VStack(spacing: 12) {
+                            ForEach(suggestions, id: \.self) { s in
+                                Text(s)
+                                    .font(.callout).fontWeight(.semibold)
+                                    .padding(.horizontal, 18).padding(.vertical, 10)
+                                    .background(Capsule().fill(Color(red: 0.93, green: 0.98, blue: 0.42)))
+                                    .foregroundStyle(.black)
+                                    .contentShape(Capsule())
+                                    .onTapGesture { sendLocal(s) }
                             }
-                            .padding(.horizontal, 24)
                         }
-                        .padding(.top, 24)
-                        .padding(.bottom, 24)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .padding(.horizontal, 24)
                     }
-
-                    ChatList(messages: thread)
-                        .frame(maxWidth: .infinity,
-                               maxHeight: showIntro ? 0 : .infinity,
-                               alignment: .top)
-                        .clipped()
-                        .animation(.spring(response: 0.3, dampingFraction: 0.9), value: showIntro)
-
-                    if isThinking && !showIntro {
-                        TypingBubble()
-                            .padding(.horizontal, 20)
-                            .padding(.top, 8)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                            .animation(.spring(response: 0.25, dampingFraction: 0.9), value: isThinking)
-                    }
+                    .padding(.top, 24)
+                    .padding(.bottom, 24)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
-                .safeAreaInset(edge: .bottom) {
-                    ChatInputBar(
-                        text: $message,
-                        typing: $typing,
-                        sendAction: { txt in
-                            let t = txt.trimmingCharacters(in: .whitespacesAndNewlines)
-                            guard !t.isEmpty else { return }
-                            sendLocal(t)
-                            message = ""
-                        },
-                        voiceAction: { startVoice() }
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 8)
-                    .padding(.bottom, kb.height > 0 ? max(kb.height - 8, 0) : 100)
+
+                ChatList(messages: thread)
+                    .frame(maxWidth: .infinity,
+                           maxHeight: showIntro ? 0 : .infinity,
+                           alignment: .top)
+                    .clipped()
+                    .animation(.spring(response: 0.3, dampingFraction: 0.9), value: showIntro)
+
+                if isThinking && !showIntro {
+                    TypingBubble()
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .animation(.spring(response: 0.25, dampingFraction: 0.9), value: isThinking)
                 }
-            } else {
+            }
+            .safeAreaInset(edge: .bottom) {
+                ChatInputBar(
+                    text: $message,
+                    typing: $typing,
+                    sendAction: { txt in
+                        let t = txt.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !t.isEmpty else { return }
+                        sendLocal(t)
+                        message = ""
+                    },
+                    voiceAction: { startVoice() }
+                )
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+                .padding(.bottom, kb.height > 0 ? max(kb.height - 8, 0) : 100)
+            }
+
+            // Voice overlay ON TOP (always covers while recording / waiting / speaking)
+            if showRecorder {
                 VoiceOverlay(
                     level: $speech.level,
-                    stop: { stopVoice(sendText: true) },
-                    cancel: { stopSession() }
+                    phase: $overlayPhase,
+                    stop: { stopVoice(sendText: true) },    // stops recording, overlay stays
+                    cancel: { stopSession() }               // cancels everything and closes
                 )
                 .transition(.opacity)
                 .onAppear { speech.start() }
             }
         }
-        // ⬇️ put the speaking video overlay & binding INSIDE the body chain
-        .overlay(alignment: .topTrailing) {
-            if showSpeaker,
-               let url = Bundle.main.url(forResource: "aisha_speaking", withExtension: "mp4") {
-                SpeakingVideoView(url: url)
-                    .frame(width: 160, height: 160)
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                    .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 8)
-                    .padding(20)
-                    .allowsHitTesting(false)
-                    .transition(.opacity)
-            }
-        }
         .onChange(of: audio.isPlaying) { playing in
-            withAnimation(.easeInOut(duration: 0.2)) { showSpeaker = playing }
+            // When audio starts -> flip overlay to speaking (shows video).
+            if playing {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                    overlayPhase = .speaking
+                    showRecorder = true
+                }
+            } else {
+                // When audio ends -> close overlay.
+                if showRecorder && overlayPhase == .speaking {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                        showRecorder = false
+                        overlayPhase = .listening
+                    }
+                }
+            }
         }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -418,17 +445,30 @@ struct AishaAssistantView: View {
     // MARK: - Voice actions
     private func startVoice() {
         typing = false
+        overlayPhase = .listening
         withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) { showRecorder = true }
     }
+
     private func stopVoice(sendText: Bool) {
+        // Stop recording but KEEP the overlay visible.
         speech.stop()
         let text = speech.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) { showRecorder = false }
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+            overlayPhase = .waiting
+            showRecorder = true
+        }
         guard sendText, !text.isEmpty else { return }
         sendVoice(text)
     }
+
     private func stopSession() {
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) { showRecorder = false }
+        // Full cancel: stop recording, stop audio (if any), close overlay.
+        speech.stop()
+        audio.stopPlayback()
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+            showRecorder = false
+            overlayPhase = .listening
+        }
     }
 }
 
@@ -440,7 +480,6 @@ final class VoiceAudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate 
     private var tempFileURL: URL?
 
     func playAudioData(_ data: Data, contentType: String?) throws {
-        // Pick a file extension that AVAudioPlayer likes
         let ext: String = {
             guard let ct = contentType?.lowercased() else { return "m4a" }
             if ct.contains("aac") { return "aac" }
@@ -453,12 +492,10 @@ final class VoiceAudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate 
 
         try data.write(to: url, options: .atomic)
 
-        // Prepare audio session for playback (plays even in Silent mode)
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
         try session.setActive(true, options: .notifyOthersOnDeactivation)
 
-        // Keep a strong ref while playing
         tempFileURL = url
         player = try AVAudioPlayer(contentsOf: url)
         player?.delegate = self
@@ -467,10 +504,19 @@ final class VoiceAudioPlayer: NSObject, ObservableObject, AVAudioPlayerDelegate 
         isPlaying = true
     }
 
+    // Allow manual cancel from overlay
+    func stopPlayback() {
+        player?.stop()
+        isPlaying = false
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        if let u = tempFileURL { try? FileManager.default.removeItem(at: u) }
+        tempFileURL = nil
+        player = nil
+    }
+
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         isPlaying = false
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        // Cleanup temp file
         if let u = tempFileURL { try? FileManager.default.removeItem(at: u) }
         tempFileURL = nil
         self.player = nil
