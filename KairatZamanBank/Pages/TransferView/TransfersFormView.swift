@@ -1,6 +1,8 @@
 import SwiftUI
+// MARK: - TransferFormView (wire up "Transfer")
 
-// MARK: - Transfer form
+import SwiftUI
+
 struct TransferFormView: View {
     @EnvironmentObject private var net: NetworkingService
     
@@ -9,32 +11,25 @@ struct TransferFormView: View {
     
     @State private var target: Target = .phone
     @Namespace private var segNS
+    
     @State private var phone = ""
     @State private var card = ""
     @State private var amount = "17 000 ₸"
     @State private var note = ""
     @FocusState private var focus: Field?
     
-    @State private var selectedCard: CardDto
+    @State private var selectedCard: CardDto? = nil
     
-    var pickerCards: [CardDto] {
-        net.cards
-    }
-    
-    init() {
-        selectedCard = (pickerCards.first ?? CardDto(imageURL: nil, last4: "----"))
-    }
+    @State private var showAlert = false
+    @State private var alertText = ""
     
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                
-                // Card selector (tap to change)
-                CardSelector(selected: $selectedCard)
+                CardSelector(cards: net.cards, selected: $selectedCard)
                 
                 SegmentedSelector(selection: $target, namespace: segNS)
                 
-                // Target input
                 Group {
                     Text(target == .phone ? "Dial a number" : "Enter card number")
                         .font(.caption).foregroundStyle(.secondary)
@@ -55,13 +50,12 @@ struct TransferFormView: View {
                     .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
                 }
                 
-                // Amount
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Transfer amount").font(.caption).foregroundStyle(.secondary)
                     TextField("0 ₸", text: $amount)
                         .multilineTextAlignment(.center)
                         .font(.title2).fontWeight(.semibold)
-                        .keyboardType(.numberPad)
+                        .keyboardType(.decimalPad)
                         .submitLabel(.done)
                         .focused($focus, equals: .amount)
                         .padding(.horizontal, 16).padding(.vertical, 18)
@@ -69,7 +63,6 @@ struct TransferFormView: View {
                         .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
                 }
                 
-                // Note
                 TextEditor(text: $note)
                     .scrollContentBackground(.hidden)
                     .focused($focus, equals: .note)
@@ -88,7 +81,6 @@ struct TransferFormView: View {
                     )
                     .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
                 
-                // Quick notes
                 HStack(spacing: 12) {
                     ForEach(["Thank you!🥰","Congrats!👏","Alhamdulillah"], id: \.self) { chip in
                         Text(chip)
@@ -100,28 +92,97 @@ struct TransferFormView: View {
                     }
                 }
                 
-                // CTA
-                Text("Transfer")
-                    .font(.headline)
+                Button {
+                    Task { await submitTransfer() }
+                } label: {
+                    HStack {
+                        if net.isTransferring { ProgressView().tint(.black) }
+                        Text(net.isTransferring ? "Transferring..." : "Transfer")
+                            .font(.headline)
+                    }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(RoundedRectangle(cornerRadius: 16).fill(Color(red: 0.93, green: 0.98, blue: 0.42)))
                     .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
                     .foregroundStyle(.black)
+                }
+                .disabled(net.isTransferring)
                 
                 TransfersCardView()
             }
         }
+        .task {
+            if net.cards.isEmpty { await net.fetchCards() }
+        }
+        .onChange(of: net.cards) { new in
+            if selectedCard == nil { selectedCard = new.first }
+        }
         .scrollIndicators(.hidden)
         .padding(20)
-        .toolbar {                               // keyboard “Done”
+        .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
                 Button("Done") { focus = nil }
             }
         }
+        .alert("Transfer", isPresented: $showAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(alertText)
+        }
+    }
+    
+    // MARK: - Submit
+    private func submitTransfer() async {
+        guard let sender = selectedCard else {
+            show("Select a card.")
+            return
+        }
+        
+        let amt = parseAmount(amount)
+        guard amt > 0 else {
+            show("Enter a valid amount.")
+            return
+        }
+        
+        let phoneValue = (target == .phone) ? phone.trimmingCharacters(in: .whitespacesAndNewlines) : nil
+        let cardValue  = (target == .card)  ? card.trimmingCharacters(in: .whitespacesAndNewlines)  : nil
+        
+        if target == .phone, (phoneValue ?? "").isEmpty { show("Enter receiver phone.") ; return }
+        if target == .card,  (cardValue  ?? "").isEmpty { show("Enter receiver card number.") ; return }
+        
+        let ok = await net.submitTransfer(
+            senderCardId: sender.id,
+            receiverPhone: phoneValue,
+            receiverCardNumber: cardValue,
+            amount: amt,
+            message: note.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        
+        if ok {
+            show("Transfer submitted.")
+            // Optional: clear inputs
+            phone = ""; card = ""; note = ""
+        } else {
+            show("Transfer failed. Try again.")
+        }
+    }
+    
+    // MARK: - Helpers
+    private func parseAmount(_ s: String) -> Double {
+        let cleaned = s
+            .replacingOccurrences(of: "₸", with: "")
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: ",", with: ".")
+        return Double(cleaned) ?? 0
+    }
+    
+    private func show(_ text: String) {
+        alertText = text
+        showAlert = true
     }
 }
+
 
 // MARK: - Segmented selector (unchanged)
 private struct SegmentedSelector: View {

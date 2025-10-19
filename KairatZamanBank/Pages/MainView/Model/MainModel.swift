@@ -21,8 +21,24 @@ enum BankTab: String, CaseIterable, Identifiable {
     }
 }
 
+struct TxnDto: Identifiable, Hashable {
+    let id: Int
+    let amount: Double
+    let message: String
+    let isSender: Bool
+    let createdAt: Date?
+}
+
 struct CardDto: Identifiable, Hashable {
-    let id = UUID()
+    let id: Int
+    let cardNumber: String
+    let cardHolderName: String
+    let expirationDate: Date?
+    let cvv: String
+    let balance: Double
+    let currency: String
+    let transactions: [TxnDto]
     let imageURL: URL?
-    let last4: String
+
+    var last4: String { String(cardNumber.suffix(4)) }
 }

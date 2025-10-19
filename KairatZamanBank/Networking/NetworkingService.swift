@@ -13,44 +13,98 @@ final class NetworkingService: ObservableObject {
     @Published var promptText: String = ""
     @Published var isSubmitting: Bool = false
     @Published var showPopup: Bool = false
-
-    // MARK: Fetch
+    @Published var isTransferring = false
+    
+    let token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI4Nzc3Nzc3Nzc3NyIsImlhdCI6MTc2MDgxNjYzMSwiZXhwIjoxNzYwOTAzMDMxfQ.alVHeshawy2-cJG9eSaFlsNkZY3SpZk0BeZE5Ny2xv8"
+    
     func fetchCards() async {
         guard let url = URL(string: "https://zamanbank-api-production.up.railway.app/cards") else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        // TODO: do not hardcode tokens in production
-        let token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI4Nzc3Nzc3Nzc3NyIsImlhdCI6MTc2MDgxNjYzMSwiZXhwIjoxNzYwOTAzMDMxfQ.alVHeshawy2-cJG9eSaFlsNkZY3SpZk0BeZE5Ny2xv8"
-        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-        struct CardResponse: Decodable { let cardNumber: String?; let designImageUrl: String? }
-
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        // Raw response mirrors backend exactly (strings for dates)
+        struct TxnResponse: Decodable {
+            let id: Int
+            let amount: Double
+            let message: String
+            let isSender: Bool
+            let createdAt: String?
+        }
+        struct CardResponse: Decodable {
+            let id: Int
+            let cardNumber: String
+            let cardHolderName: String
+            let expirationDate: String?
+            let cvv: String
+            let balance: Double
+            let currency: String
+            let transactions: [TxnResponse]
+            let designImageUrl: String?
+        }
+        
         do {
-            let (data, resp) = try await URLSession.shared.data(for: request)
+            let (data, resp) = try await URLSession.shared.data(for: req)
             guard let http = resp as? HTTPURLResponse, 200..<300 ~= http.statusCode else { return }
             let decoded = try JSONDecoder().decode([CardResponse].self, from: data)
-            cards = decoded.map {
-                let last4 = $0.cardNumber.map { String($0.suffix(4)) } ?? "0000"
-                let url = $0.designImageUrl.flatMap(URL.init(string:))
-                return CardDto(imageURL: url, last4: last4)
+            
+            cards = decoded.map { c in
+                CardDto(
+                    id: c.id,
+                    cardNumber: c.cardNumber,
+                    cardHolderName: c.cardHolderName,
+                    expirationDate: Self.parseDateOnly(c.expirationDate),
+                    cvv: c.cvv,
+                    balance: c.balance,
+                    currency: c.currency,
+                    transactions: c.transactions.map { t in
+                        TxnDto(
+                            id: t.id,
+                            amount: t.amount,
+                            message: t.message,
+                            isSender: t.isSender,
+                            createdAt: Self.parseISODateTime(t.createdAt)
+                        )
+                    },
+                    imageURL: c.designImageUrl.flatMap(URL.init(string:))
+                )
             }
         } catch {
             print("Fetch error:", error)
         }
     }
-
+    
+    // MARK: - Date parsers
+    private static func parseDateOnly(_ s: String?) -> Date? {
+        guard let s else { return nil }
+        // "2025-10-19"
+        var fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withFullDate]
+        return fmt.date(from: s)
+    }
+    
+    private static func parseISODateTime(_ s: String?) -> Date? {
+        guard let s else { return nil }
+        // e.g. "2025-10-19T02:05:46.113Z" or without fraction
+        let f1 = ISO8601DateFormatter()
+        f1.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f1.date(from: s) { return d }
+        let f2 = ISO8601DateFormatter()
+        f2.formatOptions = [.withInternetDateTime]
+        return f2.date(from: s)
+    }
+    
     // MARK: Submit
     func submitPrompt() async {
         guard let url = URL(string: "https://zamanbank-api-production.up.railway.app/cards") else { return }
         let text = promptText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-
+        
         isSubmitting = true
         defer { isSubmitting = false }
-
-        let token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI4Nzc3Nzc3Nzc3NyIsImlhdCI6MTc2MDgxNjYzMSwiZXhwIjoxNzYwOTAzMDMxfQ.alVHeshawy2-cJG9eSaFlsNkZY3SpZk0BeZE5Ny2xv8"
+        
         let body = ["designPreferences": text]
-
+        
         do {
             let json = try JSONSerialization.data(withJSONObject: body)
             var req = URLRequest(url: url)
@@ -58,7 +112,7 @@ final class NetworkingService: ObservableObject {
             req.addValue("application/json", forHTTPHeaderField: "Content-Type")
             req.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             req.httpBody = json
-
+            
             let (_, resp) = try await URLSession.shared.data(for: req)
             if let http = resp as? HTTPURLResponse, 200..<300 ~= http.statusCode {
                 showPopup = false
@@ -67,5 +121,53 @@ final class NetworkingService: ObservableObject {
         } catch {
             print("Submit error:", error)
         }
+    }
+}
+
+// transactions
+extension NetworkingService {
+    struct TransferRequest: Encodable {
+        let senderCardId: Int
+        let receiverPhone: String?
+        let receiverCardNumber: String?
+        let amount: Double
+        let message: String
+    }
+    
+    func submitTransfer(
+        senderCardId: Int,
+        receiverPhone: String?,
+        receiverCardNumber: String?,
+        amount: Double,
+        message: String
+    ) async -> Bool {
+        guard let url = URL(string: "https://zamanbank-api-production.up.railway.app/transactions") else { return false }
+        
+        isTransferring = true
+        defer { isTransferring = false }
+        
+        let body = TransferRequest(
+            senderCardId: senderCardId,
+            receiverPhone: receiverPhone?.nilIfBlank(),
+            receiverCardNumber: receiverCardNumber?.nilIfBlank(),
+            amount: amount,
+            message: message
+        )
+        
+        do {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.addValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            req.httpBody = try JSONEncoder().encode(body)
+            
+            let (_, resp) = try await URLSession.shared.data(for: req)
+            if let http = resp as? HTTPURLResponse, 200..<300 ~= http.statusCode {
+                return true
+            }
+        } catch {
+            print("Transfer error:", error)
+        }
+        return false
     }
 }

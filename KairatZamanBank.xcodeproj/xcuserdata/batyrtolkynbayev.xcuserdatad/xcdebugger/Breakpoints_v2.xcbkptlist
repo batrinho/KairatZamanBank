@@ -3,4 +3,112 @@
    uuid = "BE84224B-1D52-477F-9BFB-DF7956CD9233"
    type = "1"
    version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "7E48D304-28BB-483D-8E18-346A15572D94"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "KairatZamanBank/Networking/NetworkingService.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "163"
+            endingLineNumber = "163"
+            landmarkName = "submitTransfer(senderCardId:receiverPhone:receiverCardNumber:amount:message:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "7E48D304-28BB-483D-8E18-346A15572D94 - caa62474109062e7"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for KairatZamanBank.NetworkingService.submitTransfer(senderCardId: Swift.Int, receiverPhone: Swift.Optional&lt;Swift.String&gt;, receiverCardNumber: Swift.Optional&lt;Swift.String&gt;, amount: Swift.Double, message: Swift.String) async -&gt; Swift.Bool"
+                  moduleName = "KairatZamanBank.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/batyrtolkynbayev/Documents/KairatZamanBank/KairatZamanBank/Networking/NetworkingService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "164"
+                  endingLineNumber = "164">
+               </Location>
+               <Location
+                  uuid = "7E48D304-28BB-483D-8E18-346A15572D94 - 19feab2d5bd018ea"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(4) suspend resume partial function for KairatZamanBank.NetworkingService.submitTransfer(senderCardId: Swift.Int, receiverPhone: Swift.Optional&lt;Swift.String&gt;, receiverCardNumber: Swift.Optional&lt;Swift.String&gt;, amount: Swift.Double, message: Swift.String) async -&gt; Swift.Bool"
+                  moduleName = "KairatZamanBank.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/batyrtolkynbayev/Documents/KairatZamanBank/KairatZamanBank/Networking/NetworkingService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "164"
+                  endingLineNumber = "164">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "9F1DD3A7-EC5D-4926-A975-1466053AA740"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "KairatZamanBank/Networking/NetworkingService.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "166"
+            endingLineNumber = "166"
+            landmarkName = "submitTransfer(senderCardId:receiverPhone:receiverCardNumber:amount:message:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "9F1DD3A7-EC5D-4926-A975-1466053AA740 - caa6247410906221"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for KairatZamanBank.NetworkingService.submitTransfer(senderCardId: Swift.Int, receiverPhone: Swift.Optional&lt;Swift.String&gt;, receiverCardNumber: Swift.Optional&lt;Swift.String&gt;, amount: Swift.Double, message: Swift.String) async -&gt; Swift.Bool"
+                  moduleName = "KairatZamanBank.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/batyrtolkynbayev/Documents/KairatZamanBank/KairatZamanBank/Networking/NetworkingService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "166"
+                  endingLineNumber = "166">
+               </Location>
+               <Location
+                  uuid = "9F1DD3A7-EC5D-4926-A975-1466053AA740 - e93694e5c2e6be23"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for KairatZamanBank.NetworkingService.submitTransfer(senderCardId: Swift.Int, receiverPhone: Swift.Optional&lt;Swift.String&gt;, receiverCardNumber: Swift.Optional&lt;Swift.String&gt;, amount: Swift.Double, message: Swift.String) async -&gt; Swift.Bool"
+                  moduleName = "KairatZamanBank.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/batyrtolkynbayev/Documents/KairatZamanBank/KairatZamanBank/Networking/NetworkingService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "166"
+                  endingLineNumber = "166">
+               </Location>
+               <Location
+                  uuid = "9F1DD3A7-EC5D-4926-A975-1466053AA740 - 19feab2d5bd0182c"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(4) suspend resume partial function for KairatZamanBank.NetworkingService.submitTransfer(senderCardId: Swift.Int, receiverPhone: Swift.Optional&lt;Swift.String&gt;, receiverCardNumber: Swift.Optional&lt;Swift.String&gt;, amount: Swift.Double, message: Swift.String) async -&gt; Swift.Bool"
+                  moduleName = "KairatZamanBank.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/batyrtolkynbayev/Documents/KairatZamanBank/KairatZamanBank/Networking/NetworkingService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "166"
+                  endingLineNumber = "166">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
 </Bucket>

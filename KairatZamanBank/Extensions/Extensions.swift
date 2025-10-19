@@ -69,3 +69,11 @@ struct CachedAsyncImage<Placeholder: View>: View {
         return dir.appendingPathComponent("imgcache_\(name).dat")
     }
 }
+
+
+extension String {
+    func nilIfBlank() -> String? {
+        let t = trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
+    }
+}
