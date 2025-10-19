@@ -67,11 +67,6 @@ private struct CardDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Capsule().fill(Color.secondary.opacity(0.25))
-                .frame(width: 44, height: 5)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 8)
-
             Text("Card details")
                 .font(.title3).fontWeight(.semibold)
 

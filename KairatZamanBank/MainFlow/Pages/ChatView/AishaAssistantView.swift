@@ -147,6 +147,7 @@ struct AishaAssistantView: View {
                         .animation(.spring(response: 0.25, dampingFraction: 0.9), value: isThinking)
                 }
             }
+            .padding(.top, 50)
             .safeAreaInset(edge: .bottom) {
                 ChatInputBar(
                     text: $message,

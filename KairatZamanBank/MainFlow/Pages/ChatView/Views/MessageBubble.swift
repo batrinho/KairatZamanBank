@@ -11,7 +11,11 @@ struct MessageBubble: View {
     let message: ChatMessage
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            if message.role == .assistant { Text("🧕").font(.system(size: 22)) }
+            if message.role == .assistant {
+                if let ui = UIImage(named: "AishaHappy") {
+                    Image(uiImage: ui).resizable().scaledToFit().frame(width: 22, height: 22)
+                } else { Text("🧕").font(.system(size: 22)) }
+            }
             Text(message.text)
                 .font(.callout)
                 .padding(.horizontal, 14).padding(.vertical, 10)

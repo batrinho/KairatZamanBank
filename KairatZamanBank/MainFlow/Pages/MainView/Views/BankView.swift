@@ -9,15 +9,18 @@ import SwiftUI
 
 struct BankView: View {
     @EnvironmentObject var net: NetworkingService
+    var reminderTitle: String
+    var reminderMoodHappy: Bool
     var onTap: () -> Void = {}
     
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                AishaButtonView().onTapGesture {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    onTap()
-                }
+                AishaButtonView(title: reminderTitle, subtitle: "- Aisha Assistant", moodHappy: reminderMoodHappy, onTap: onTap)
+                    .onTapGesture {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        onTap()
+                    }
                 
                 LazyVStack(spacing: 10) {
                     ForEach(net.cards) { c in
@@ -26,13 +29,13 @@ struct BankView: View {
                 }
                 
                 AddCardView()
-                    .onTapGesture {
-                        net.showPopup = true
-                    }
+                    .onTapGesture { net.showPopup = true }
+                    .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
             }
         }
         .task { await net.fetchCards() }
         .scrollIndicators(.hidden)
+        .padding(.top, 50)
         .padding(20)
         .padding(.bottom, 80)
         .background(Color.clear)

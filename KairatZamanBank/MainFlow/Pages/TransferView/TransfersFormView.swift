@@ -120,11 +120,13 @@ struct TransferFormView: View {
                         .foregroundStyle(.black)
                     }
                     .disabled(net.isTransferring)
-
-                    TransfersCardView(sections: sections) { tid in
-                        reportTxnId = tid
-                        reportText = ""
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { showReport = true }
+                    
+                    if !sections.isEmpty {
+                        TransfersCardView(sections: sections) { tid in
+                            reportTxnId = tid
+                            reportText = ""
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { showReport = true }
+                        }
                     }
                 }
             }
@@ -251,6 +253,7 @@ struct TransferFormView: View {
                 .transition(.scale.combined(with: .opacity))
             }
         }
+        .padding(.top, 50)
     }
 
     // MARK: fraud

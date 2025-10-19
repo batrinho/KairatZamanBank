@@ -4,15 +4,15 @@ import SwiftUI
 struct TransfersCardView: View {
     let sections: [DayTransactionsDto]
     var onReport: (Int) -> Void = { _ in }
-
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Transactions").font(.title3).fontWeight(.semibold)
-
+            
             ForEach(sections) { day in
                 Text(day.date.isToday ? "Today" : day.date.dayHeader)
                     .font(.caption).foregroundStyle(.secondary)
-
+                
                 LazyVStack(spacing: 14) {
                     ForEach(day.items, id: \.id) { txn in
                         TransactionRow(item: txn, onReport: onReport)
@@ -31,14 +31,14 @@ struct TransfersCardView: View {
 private struct TransactionRow: View {
     let item: TxnDto
     var onReport: (Int) -> Void
-
+    
     private var type: TxnType { item.isSender ? .outgoing : .incoming }
     private var subtitle: String {
         item.message.isEmpty
         ? (item.isSender ? "Outgoing transfer" : "Incoming transfer")
         : item.message
     }
-
+    
     var body: some View {
         HStack(spacing: 12) {
             Circle()
@@ -49,19 +49,25 @@ private struct TransactionRow: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(type.tint)
                 )
-
+            
             VStack(alignment: .leading, spacing: 2) {
                 Text("Transfer").font(.subheadline).fontWeight(.semibold)
                 Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
-
+            
             Spacer()
-
+            
             Text("\(type.sign) \(item.amount, specifier: "%.2f") ₸")
                 .font(.subheadline).fontWeight(.semibold)
                 .foregroundStyle(type.amtColor)
                 .monospacedDigit()
-
+                .lineLimit(1)                 // single line
+                .truncationMode(.head)        // cut from the left if needed
+                .minimumScaleFactor(0.85)     // shrink a bit before truncating
+                .allowsTightening(true)
+                .fixedSize(horizontal: true, vertical: false) // disable wrapping
+                .layoutPriority(2)
+            
             Button {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 onReport(item.id)
