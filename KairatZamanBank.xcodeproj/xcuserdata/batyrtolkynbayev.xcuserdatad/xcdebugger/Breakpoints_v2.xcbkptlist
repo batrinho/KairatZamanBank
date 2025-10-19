@@ -18,50 +18,6 @@
             endingLineNumber = "169"
             landmarkName = "submitTransfer(senderCardId:receiverPhone:receiverCardNumber:amount:message:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "9F1DD3A7-EC5D-4926-A975-1466053AA740 - caa62474109063ad"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(1) suspend resume partial function for KairatZamanBank.NetworkingService.submitTransfer(senderCardId: Swift.Int, receiverPhone: Swift.Optional&lt;Swift.String&gt;, receiverCardNumber: Swift.Optional&lt;Swift.String&gt;, amount: Swift.Double, message: Swift.String) async -&gt; Swift.Bool"
-                  moduleName = "KairatZamanBank.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/batyrtolkynbayev/Documents/KairatZamanBank/KairatZamanBank/Networking/NetworkingService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "170"
-                  endingLineNumber = "170">
-               </Location>
-               <Location
-                  uuid = "9F1DD3A7-EC5D-4926-A975-1466053AA740 - e93694e5c2e6bfaf"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(3) suspend resume partial function for KairatZamanBank.NetworkingService.submitTransfer(senderCardId: Swift.Int, receiverPhone: Swift.Optional&lt;Swift.String&gt;, receiverCardNumber: Swift.Optional&lt;Swift.String&gt;, amount: Swift.Double, message: Swift.String) async -&gt; Swift.Bool"
-                  moduleName = "KairatZamanBank.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/batyrtolkynbayev/Documents/KairatZamanBank/KairatZamanBank/Networking/NetworkingService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "170"
-                  endingLineNumber = "170">
-               </Location>
-               <Location
-                  uuid = "9F1DD3A7-EC5D-4926-A975-1466053AA740 - 19feab2d5bd019a0"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(4) suspend resume partial function for KairatZamanBank.NetworkingService.submitTransfer(senderCardId: Swift.Int, receiverPhone: Swift.Optional&lt;Swift.String&gt;, receiverCardNumber: Swift.Optional&lt;Swift.String&gt;, amount: Swift.Double, message: Swift.String) async -&gt; Swift.Bool"
-                  moduleName = "KairatZamanBank.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/batyrtolkynbayev/Documents/KairatZamanBank/KairatZamanBank/Networking/NetworkingService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "170"
-                  endingLineNumber = "170">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -110,36 +66,6 @@
             endingLineNumber = "194"
             landmarkName = "fraudCheck(phone:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "D188090B-E96B-4036-B210-07580E7FF49E - 865f08dbc990c8e7"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(3) suspend resume partial function for KairatZamanBank.NetworkingService.fraudCheck(phone: Swift.String) async -&gt; Swift.Optional&lt;Swift.Bool&gt;"
-                  moduleName = "KairatZamanBank.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/batyrtolkynbayev/Documents/KairatZamanBank/KairatZamanBank/Networking/NetworkingService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "194"
-                  endingLineNumber = "194">
-               </Location>
-               <Location
-                  uuid = "D188090B-E96B-4036-B210-07580E7FF49E - 865f08dbc990c8e7"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(3) suspend resume partial function for KairatZamanBank.NetworkingService.fraudCheck(phone: Swift.String) async -&gt; Swift.Optional&lt;Swift.Bool&gt;"
-                  moduleName = "KairatZamanBank.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/batyrtolkynbayev/Documents/KairatZamanBank/KairatZamanBank/Networking/NetworkingService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "194"
-                  endingLineNumber = "194">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -172,36 +98,6 @@
             endingLineNumber = "190"
             landmarkName = "fraudCheck(phone:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "1B49B098-ECCE-4646-8B9A-21E8249D20AD - 865f08dbc990cb7b"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(3) suspend resume partial function for KairatZamanBank.NetworkingService.fraudCheck(phone: Swift.String) async -&gt; Swift.Optional&lt;Swift.Bool&gt;"
-                  moduleName = "KairatZamanBank.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/batyrtolkynbayev/Documents/KairatZamanBank/KairatZamanBank/Networking/NetworkingService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "190"
-                  endingLineNumber = "190">
-               </Location>
-               <Location
-                  uuid = "1B49B098-ECCE-4646-8B9A-21E8249D20AD - 865f08dbc990cb7b"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(3) suspend resume partial function for KairatZamanBank.NetworkingService.fraudCheck(phone: Swift.String) async -&gt; Swift.Optional&lt;Swift.Bool&gt;"
-                  moduleName = "KairatZamanBank.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/batyrtolkynbayev/Documents/KairatZamanBank/KairatZamanBank/Networking/NetworkingService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "190"
-                  endingLineNumber = "190">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -217,6 +113,86 @@
             startingLineNumber = "181"
             endingLineNumber = "181"
             landmarkName = "fraudCheck(phone:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "01F93B09-151C-4A97-B74E-04CDA34A9AFA"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "KairatZamanBank/MainFlow/Pages/TransferView/TransfersFormView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "299"
+            endingLineNumber = "299"
+            landmarkName = "submitReport()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "7C510DFB-C6DA-4E29-94F6-3E1ABDE18371"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "KairatZamanBank/MainFlow/Pages/TransferView/TransfersFormView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "303"
+            endingLineNumber = "303"
+            landmarkName = "submitReport()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "71101C9A-3D91-4F3F-83E5-56BCE3B0CC7A"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "KairatZamanBank/MainFlow/Pages/TransferView/TransfersFormView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "305"
+            endingLineNumber = "305"
+            landmarkName = "submitReport()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "F2C424B4-D2AC-44A4-8851-999F72B1455F"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "KairatZamanBank/MainFlow/Pages/TransferView/TransfersFormView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "308"
+            endingLineNumber = "308"
+            landmarkName = "submitReport()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "55ACDA43-2220-4B3A-B118-CF1711EBE9DA"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "KairatZamanBank/MainFlow/Pages/TransferView/TransfersFormView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "313"
+            endingLineNumber = "313"
+            landmarkName = "submitReport()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

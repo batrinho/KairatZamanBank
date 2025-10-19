@@ -26,6 +26,9 @@
 			exceptions = (
 				89EDA1292EA3806400184C4B /* Exceptions for "KairatZamanBank" folder in "KairatZamanBank" target */,
 			);
+			explicitFileTypes = {
+				MainFlow/Pages/MainView/MainPageView.swift = sourcecode.swift;
+			};
 			path = KairatZamanBank;
 			sourceTree = "<group>";
 		};

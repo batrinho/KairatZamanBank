@@ -6,6 +6,14 @@
 //
 
 import SwiftUI
+import AVFoundation
+import _AVKit_SwiftUI
+
+enum VoiceOverlayPhase: Equatable {
+    case listening
+    case waiting
+    case speaking
+}
 
 struct VoiceOverlay: View {
     @Binding var level: CGFloat
@@ -144,3 +152,39 @@ struct VoiceOverlay: View {
         }
     }
 }
+
+
+struct SpeakingVideoView: View {
+    let url: URL
+    @State private var queue = AVQueuePlayer()
+    @State private var looper: AVPlayerLooper?
+    var body: some View {
+        VideoPlayer(player: queue)
+            .onAppear {
+                let item = AVPlayerItem(url: url)
+                looper = AVPlayerLooper(player: queue, templateItem: item)
+                queue.isMuted = true
+                queue.play()
+            }
+            .onDisappear {
+                queue.pause()
+                looper = nil
+            }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

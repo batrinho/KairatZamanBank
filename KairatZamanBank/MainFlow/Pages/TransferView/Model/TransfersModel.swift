@@ -25,3 +25,9 @@ struct CardItem: Identifiable, Hashable {
     let last4: String
     let balance: String
 }
+
+struct DayTransactionsDto: Identifiable, Hashable {
+    let date: Date
+    let items: [TxnDto]
+    var id: Date { date }
+}

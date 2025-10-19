@@ -37,7 +37,6 @@ struct CardDto: Identifiable, Hashable {
     let cvv: String
     let balance: Double
     let currency: String
-    let transactions: [TxnDto]
     let imageURL: URL?
 
     var last4: String { String(cardNumber.suffix(4)) }

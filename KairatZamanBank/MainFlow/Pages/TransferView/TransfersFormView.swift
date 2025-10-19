@@ -1,3 +1,4 @@
+// TransferFormView.swift
 import SwiftUI
 
 struct TransferFormView: View {
@@ -11,18 +12,27 @@ struct TransferFormView: View {
 
     @State private var phone = ""
     @State private var card = ""
-    @State private var amount = "17 000 ₸"
+    @State private var amount = "0 ₸"
     @State private var note = ""
     @FocusState private var focus: Field?
 
     @State private var selectedCard: CardDto? = nil
+    @State private var sections: [DayTransactionsDto] = []
 
-    // Alerts and progress
+    // alerts
     @State private var showAlert = false
     @State private var alertText = ""
 
+    // fraud
     @State private var isFraudChecking = false
     @State private var showFraudPopup = false
+
+    // report popup
+    @State private var showReport = false
+    @State private var reportText = ""
+    @State private var isReporting = false
+    @State private var reportError: String? = nil
+    @State private var reportTxnId: Int? = nil
 
     var body: some View {
         ZStack {
@@ -111,18 +121,34 @@ struct TransferFormView: View {
                     }
                     .disabled(net.isTransferring)
 
-                    TransfersCardView()
+                    TransfersCardView(sections: sections) { tid in
+                        reportTxnId = tid
+                        reportText = ""
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { showReport = true }
+                    }
                 }
             }
-            .task { if net.cards.isEmpty { await net.fetchCards() } }
-            .onChange(of: net.cards) { new in if selectedCard == nil { selectedCard = new.first } }
+            .task {
+                if net.cards.isEmpty { await net.fetchCards() }
+                if selectedCard == nil { selectedCard = net.cards.first }
+            }
+            .onChange(of: net.cards) { new in
+                if selectedCard == nil, let first = new.first {
+                    selectedCard = first
+                    Task { sections = await net.fetchTransactions(cardId: first.id) }
+                }
+            }
+            .onChange(of: selectedCard?.id) { newId in
+                guard let id = newId else { return }
+                Task { sections = await net.fetchTransactions(cardId: id) }
+            }
             .scrollIndicators(.hidden)
             .padding(20)
+            .padding(.bottom, 80)
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
                     Button("Done") {
-                        // on dismissing keyboard, if phone target, run fraud-check
                         let leavingPhone = (focus == .phone)
                         focus = nil
                         if leavingPhone, target == .phone { Task { await runFraudCheckIfNeeded() } }
@@ -133,7 +159,7 @@ struct TransferFormView: View {
                 Button("OK", role: .cancel) {}
             } message: { Text(alertText) }
 
-            // Full-screen blur + spinner during fraud check
+            // fraud overlay
             if isFraudChecking {
                 Rectangle()
                     .fill(.ultraThinMaterial)
@@ -142,7 +168,7 @@ struct TransferFormView: View {
                     .transition(.opacity)
             }
 
-            // Fraud popup
+            // fraud popup
             if showFraudPopup {
                 Rectangle()
                     .fill(Color.black.opacity(0.25))
@@ -155,19 +181,15 @@ struct TransferFormView: View {
                     } else {
                         Text("🧕").font(.system(size: 64))
                     }
-                    Text("Suspicious recipient")
-                        .font(.title3).fontWeight(.semibold)
+                    Text("Suspicious recipient").font(.title3).fontWeight(.semibold)
                     Text("This phone number is flagged as suspicious. Please verify before sending.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
+                        .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
                         .padding(.horizontal, 12)
                     Button {
                         withAnimation { showFraudPopup = false }
                     } label: {
                         Text("OK").fontWeight(.semibold)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
+                            .frame(maxWidth: .infinity).padding(.vertical, 10)
                             .background(RoundedRectangle(cornerRadius: 12).fill(Color.yellow.opacity(0.9)))
                             .foregroundStyle(.black)
                     }
@@ -180,10 +202,58 @@ struct TransferFormView: View {
                 .padding(.horizontal, 24)
                 .transition(.scale.combined(with: .opacity))
             }
+
+            // report popup
+            if showReport {
+                Color.black.opacity(0.25).ignoresSafeArea()
+                    .onTapGesture { withAnimation { showReport = false } }
+
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Text("Describe your problem").font(.headline)
+                        Spacer()
+                        Button { withAnimation { showReport = false } } label: {
+                            Image(systemName: "xmark.circle.fill").font(.title3).foregroundStyle(.secondary)
+                        }
+                    }
+                    Text("Explain what went wrong with this transaction:")
+                        .font(.subheadline).foregroundStyle(.secondary)
+
+                    TextEditor(text: $reportText)
+                        .frame(height: 150)
+                        .padding(12)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                    if let err = reportError {
+                        Text(err).font(.footnote).foregroundStyle(.red)
+                    }
+
+                    Button { Task { await submitReport() } } label: {
+                        HStack {
+                            if isReporting { ProgressView().tint(.black) }
+                            Text(isReporting ? "Submitting..." : "Submit").fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.yellow.opacity(0.9))
+                        .foregroundStyle(.black)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .disabled(isReporting || reportText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                .padding(24)
+                .frame(maxWidth: 560)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .shadow(color: .black.opacity(0.15), radius: 20, y: 8)
+                .padding(.horizontal, 24)
+                .transition(.scale.combined(with: .opacity))
+            }
         }
     }
 
-    // MARK: - Fraud check trigger
+    // MARK: fraud
     private func runFraudCheckIfNeeded() async {
         guard target == .phone else { return }
         let raw = phone.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -192,21 +262,17 @@ struct TransferFormView: View {
     }
 
     private func fraudCheck(phone: String) async {
-        await MainActor.run {
-            isFraudChecking = true
-        }
-        let result = await net.fraudCheck(phone: phone)   // true = suspicious
-        await MainActor.run {
-            isFraudChecking = false
-            if result == true {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
-                    showFraudPopup = true
-                }
+        isFraudChecking = true
+        let result = await net.fraudCheck(phone: phone)
+        isFraudChecking = false
+        if result == true {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
+                showFraudPopup = true
             }
         }
     }
 
-    // MARK: - Submit transfer (unchanged from your last)
+    // MARK: submit transfer
     private func submitTransfer() async {
         guard let sender = selectedCard else { show("Select a card."); return }
         let amt = parseAmount(amount)
@@ -224,16 +290,34 @@ struct TransferFormView: View {
             amount: amt,
             message: note.trimmingCharacters(in: .whitespacesAndNewlines)
         )
+        if ok { show("Transfer submitted."); phone = ""; card = ""; note = "" }
+        else { show("Transfer failed. Try again.") }
+    }
+
+    // MARK: submit report
+    private func submitReport() async {
+        guard let tid = reportTxnId else { return }
+        let msg = reportText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !msg.isEmpty else { reportError = "Please enter a description."; return }
+        isReporting = true
+        reportError = nil
+        let ok = await net.reportTransaction(transactionId: tid, reportMessage: msg)
+        isReporting = false
         if ok {
-            show("Transfer submitted."); phone = ""; card = ""; note = ""
-        } else {
-            show("Transfer failed. Try again.")
+            withAnimation {
+                showReport = false
+            };
+            reportText = ""
+        }
+        else {
+            reportError = "Failed to submit. Try again."
         }
     }
 
-    // MARK: - Helpers
+    // MARK: helpers
     private func parseAmount(_ s: String) -> Double {
-        let cleaned = s.replacingOccurrences(of: "₸", with: "")
+        let cleaned = s
+            .replacingOccurrences(of: "₸", with: "")
             .replacingOccurrences(of: " ", with: "")
             .replacingOccurrences(of: ",", with: ".")
         return Double(cleaned) ?? 0
@@ -241,13 +325,11 @@ struct TransferFormView: View {
     private func show(_ text: String) { alertText = text; showAlert = true }
 }
 
-
-
-// MARK: - Segmented selector (unchanged)
+// SegmentedSelector unchanged
 private struct SegmentedSelector: View {
     @Binding var selection: TransferFormView.Target
     var namespace: Namespace.ID
-    
+
     var body: some View {
         HStack(spacing: 0) {
             ForEach(TransferFormView.Target.allCases, id: \.self) { tab in
