@@ -2,16 +2,37 @@ import SwiftUI
 import Combine
 import Speech
 import AVFoundation
+import AVKit
 
 private let base = "https://zamanbank-api-production.up.railway.app"
 private let bearer =
 """
-eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0IiwiaWF0IjoxNzYwODUyNDU5LCJleHAiOjE3NjA5Mzg4NTl9.R-USJ4r8ow5Y3j5RSqfqyGNqBJ6_1Xt0Ad43D6A-wio
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0IiwiaWF0IjoxNzYwODUzNjA0LCJleHAiOjE3NjA5NDAwMDR9.C1CciR2B6SPR3Q1gDeVgVTiB6e-XdbHdyvNjEW4wA4c
 """
 
 private struct ChatAPIResponse: Decodable {
     let response: String
     let message: String?
+}
+
+struct SpeakingVideoView: View {
+    let url: URL
+    @State private var queue = AVQueuePlayer()
+    @State private var looper: AVPlayerLooper?
+
+    var body: some View {
+        VideoPlayer(player: queue)
+            .onAppear {
+                let item = AVPlayerItem(url: url)
+                looper = AVPlayerLooper(player: queue, templateItem: item)
+                queue.isMuted = true
+                queue.play()
+            }
+            .onDisappear {
+                queue.pause()
+                looper = nil
+            }
+    }
 }
 
 private struct TypingBubble: View {
@@ -186,27 +207,26 @@ struct AishaAssistantView: View {
     @StateObject private var audio = VoiceAudioPlayer()
     @State private var showIntro = true
     @State private var thread: [ChatMessage] = []
-    
+    @State private var showSpeaker = false
+
     // voice
     @State private var showRecorder = false
     @StateObject private var speech = SpeechRecognizer()
-    
+
     let suggestions = [
         "Give me my monthly report",
         "Show my zakat amount",
         "How can I effectively spend my money?",
         "I should pay my mahr this year. Give me a plan"
     ]
-    
+
     @MainActor
     private func sendRemote(_ text: String) {
-        // prevent overlapping requests (optional, but helpful)
         if isThinking { return }
         isThinking = true
 
         Task {
-            defer { isThinking = false } // always turn off
-
+            defer { isThinking = false }
             do {
                 var comps = URLComponents(string: "\(base)/chat-bot/chat")!
                 comps.queryItems = [URLQueryItem(name: "text", value: text)]
@@ -229,7 +249,6 @@ struct AishaAssistantView: View {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
                     thread.append(.init(role: .assistant, text: botReply.isEmpty ? "…" : botReply))
                 }
-
             } catch {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
                     thread.append(.init(role: .assistant,
@@ -238,14 +257,14 @@ struct AishaAssistantView: View {
             }
         }
     }
-    
+
     @MainActor
     private func sendVoice(_ text: String) {
         showIntro = false
         withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             thread.append(.init(role: .user, text: text))
         }
-        sendRemoteVoice(text) // ← hits TTS endpoint and auto-plays audio
+        sendRemoteVoice(text) // hits TTS endpoint and auto-plays audio
     }
 
     @MainActor
@@ -255,7 +274,6 @@ struct AishaAssistantView: View {
 
         Task {
             defer { isThinking = false }
-
             do {
                 var comps = URLComponents(string: "\(base)/chat-bot/analyze-speech")!
                 comps.queryItems = [URLQueryItem(name: "text", value: text)]
@@ -264,7 +282,6 @@ struct AishaAssistantView: View {
                 var req = URLRequest(url: url)
                 req.httpMethod = "POST"
                 req.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
-                // We expect raw audio back:
                 req.setValue("audio/aac, audio/mp4, audio/m4a, application/octet-stream", forHTTPHeaderField: "Accept")
 
                 let (data, resp) = try await URLSession.shared.data(for: req)
@@ -273,17 +290,14 @@ struct AishaAssistantView: View {
                     throw NSError(domain: "HTTPError", code: code)
                 }
 
-                let contentType = (resp as? HTTPURLResponse)?
-                    .value(forHTTPHeaderField: "Content-Type")
+                let contentType = (resp as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type")
 
-                // Play the audio immediately
+                // Play reply and let UI react to audio.isPlaying
                 try audio.playAudioData(data, contentType: contentType)
 
-                // (Optional) show a little marker message in the thread
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
                     thread.append(.init(role: .assistant, text: "🔊 Playing voice reply…"))
                 }
-
             } catch {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
                     thread.append(.init(role: .assistant,
@@ -292,11 +306,11 @@ struct AishaAssistantView: View {
             }
         }
     }
-    
+
     var body: some View {
         ZStack {
             ZamanGradientView().ignoresSafeArea()
-            
+
             if !showRecorder {
                 VStack(spacing: 0) {
                     if showIntro {
@@ -317,7 +331,7 @@ struct AishaAssistantView: View {
                                         .background(Capsule().fill(Color(red: 0.93, green: 0.98, blue: 0.42)))
                                         .foregroundStyle(.black)
                                         .contentShape(Capsule())
-                                        .onTapGesture { sendLocal(s) } // now adds to thread
+                                        .onTapGesture { sendLocal(s) }
                                 }
                             }
                             .padding(.horizontal, 24)
@@ -326,21 +340,21 @@ struct AishaAssistantView: View {
                         .padding(.bottom, 24)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
-                    
-                    ChatList(messages: thread)
-                            .frame(maxWidth: .infinity,
-                                   maxHeight: showIntro ? 0 : .infinity,
-                                   alignment: .top)
-                            .clipped()
-                            .animation(.spring(response: 0.3, dampingFraction: 0.9), value: showIntro)
 
-                        if isThinking && !showIntro {
-                            TypingBubble() // ⬅️ new little bubble
-                                .padding(.horizontal, 20)
-                                .padding(.top, 8)
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
-                                .animation(.spring(response: 0.25, dampingFraction: 0.9), value: isThinking)
-                        }
+                    ChatList(messages: thread)
+                        .frame(maxWidth: .infinity,
+                               maxHeight: showIntro ? 0 : .infinity,
+                               alignment: .top)
+                        .clipped()
+                        .animation(.spring(response: 0.3, dampingFraction: 0.9), value: showIntro)
+
+                    if isThinking && !showIntro {
+                        TypingBubble()
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                            .animation(.spring(response: 0.25, dampingFraction: 0.9), value: isThinking)
+                    }
                 }
                 .safeAreaInset(edge: .bottom) {
                     ChatInputBar(
@@ -349,7 +363,7 @@ struct AishaAssistantView: View {
                         sendAction: { txt in
                             let t = txt.trimmingCharacters(in: .whitespacesAndNewlines)
                             guard !t.isEmpty else { return }
-                            sendLocal(t) // typed messages now go to thread
+                            sendLocal(t)
                             message = ""
                         },
                         voiceAction: { startVoice() }
@@ -368,6 +382,22 @@ struct AishaAssistantView: View {
                 .onAppear { speech.start() }
             }
         }
+        // ⬇️ put the speaking video overlay & binding INSIDE the body chain
+        .overlay(alignment: .topTrailing) {
+            if showSpeaker,
+               let url = Bundle.main.url(forResource: "aisha_speaking", withExtension: "mp4") {
+                SpeakingVideoView(url: url)
+                    .frame(width: 160, height: 160)
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 8)
+                    .padding(20)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
+        }
+        .onChange(of: audio.isPlaying) { playing in
+            withAnimation(.easeInOut(duration: 0.2)) { showSpeaker = playing }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -375,17 +405,17 @@ struct AishaAssistantView: View {
             }
         }
     }
-    
+
     // MARK: - Local send + network
     private func sendLocal(_ text: String) {
         showIntro = false
         withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
             thread.append(.init(role: .user, text: text))
         }
-        sendRemote(text) // ← hit your backend
+        sendRemote(text)
     }
-    
-    // MARK: - Voice actions (unchanged behavior)
+
+    // MARK: - Voice actions
     private func startVoice() {
         typing = false
         withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) { showRecorder = true }
@@ -395,7 +425,7 @@ struct AishaAssistantView: View {
         let text = speech.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) { showRecorder = false }
         guard sendText, !text.isEmpty else { return }
-        sendVoice(text) // ← was: sendLocal(text)
+        sendVoice(text)
     }
     private func stopSession() {
         withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) { showRecorder = false }
